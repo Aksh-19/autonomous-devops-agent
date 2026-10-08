@@ -19,6 +19,17 @@ class MockDevOpsAPI:
         ]
         
         self.tickets = []
+        
+        # Phase 3 Addition: Company Runbooks (Memory/Context)
+        self.runbooks = {
+            "billing_service": "POLICY: The billing_service handles financial transactions. If a memory leak is detected, a restart is required. CRITICAL: You MUST obtain human approval before restarting this service."
+        }
+
+    def get_runbook(self, service_name):
+        """Simulates GET /api/v1/runbooks/{service_name}"""
+        if service_name in self.runbooks:
+            return json.dumps({"status": "success", "policy": self.runbooks[service_name]})
+        return json.dumps({"status": "success", "policy": "No specific policy found. Proceed with standard remediation."})
 
     def get_alerts(self):
         """Simulates GET /api/v1/alerts"""

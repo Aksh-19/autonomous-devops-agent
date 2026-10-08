@@ -3,7 +3,8 @@ import json
 import google.generativeai as genai
 from tools import (
     get_active_alerts, get_service_logs, 
-    restart_service, get_service_status, create_incident_ticket
+    restart_service, get_service_status, create_incident_ticket,
+    search_company_runbooks, request_human_approval
 )
 
 def build_agent():
@@ -20,7 +21,9 @@ def build_agent():
         "get_service_logs": get_service_logs,
         "restart_service": restart_service,
         "get_service_status": get_service_status,
-        "create_incident_ticket": create_incident_ticket
+        "create_incident_ticket": create_incident_ticket,
+        "search_company_runbooks": search_company_runbooks,
+        "request_human_approval": request_human_approval
     }
 
     # 3. System Prompt - Defines the agent's behavior, autonomy, and verification constraints
@@ -32,11 +35,13 @@ def build_agent():
     
     CRITICAL INSTRUCTIONS:
     1. UNDERSTAND: Start by checking for active alerts.
-    2. PLAN & EXECUTE: If a service is degraded, read its logs to diagnose the issue. 
-    3. ADAPT: If you see memory leak logs or hanging processes, a restart is the appropriate remediation.
-    4. VERIFY: ALWAYS verify your actions. If you restart a service, you MUST check its status afterwards to ensure it is 'healthy' before concluding.
-    5. COMPLETE: Once verified, ALWAYS create a ticket summarizing the root cause and the fix applied.
-    6. Once the ticket is created, output a final summary for the user.
+    2. CONTEXT: If a service is degraded, you MUST call 'search_company_runbooks' to learn the policy for that specific service BEFORE taking any action.
+    3. PLAN & EXECUTE: Read the service logs to diagnose the issue. 
+    4. APPROVAL: If the company runbook states that human approval is required, you MUST call 'request_human_approval' before performing a restart or any remediation. If denied, halt remediation.
+    5. ADAPT: If you see memory leak logs or hanging processes (and have approval if required), a restart is the appropriate remediation.
+    6. VERIFY: ALWAYS verify your actions. If you restart a service, you MUST check its status afterwards to ensure it is 'healthy' before concluding.
+    7. COMPLETE: Once verified, ALWAYS create a ticket summarizing the root cause and the fix applied.
+    8. Once the ticket is created, output a final summary for the user.
     """
 
     # We use gemini-3.5-flash as it is exceptionally fast at tool calling

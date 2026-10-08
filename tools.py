@@ -32,3 +32,24 @@ def create_incident_ticket(title: str, description: str, severity: str):
     Use this to document issues AFTER you have resolved them.
     """
     return system_mock.create_ticket(title, description, severity)
+
+def search_company_runbooks(service_name: str):
+    """
+    Searches the internal company knowledge base for procedures on how to handle specific services.
+    Use this to understand company policy BEFORE taking remediation actions.
+    """
+    return system_mock.get_runbook(service_name)
+
+def request_human_approval(reason: str):
+    """
+    Pauses execution and asks the human operator for explicit approval.
+    You MUST use this if a runbook policy dictates that human approval is required for an action.
+    The 'reason' string should explain to the user exactly what you want to do and why.
+    """
+    print(f"\n✋ [HUMAN APPROVAL REQUIRED]: The agent is requesting permission to: {reason}")
+    response = input("Do you approve this action? (y/n): ")
+    if response.lower() == 'y':
+        return '{"status": "approved", "message": "Human operator approved the action."}'
+    else:
+        return '{"status": "denied", "message": "Human operator denied the action. You must halt the remediation."}'
+
