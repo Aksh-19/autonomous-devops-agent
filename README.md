@@ -38,18 +38,19 @@ Instead of building a broad, mocked-out browser system, I adhered to the scope g
 ## 🧠 Architecture Explanation
 The system operates on a pure Python **ReAct (Reason + Act)** loop that interacts with `mock_system.py`, which acts as the stateful "Company Server".
 
-1. **Goal:** The user provides a natural language prompt (e.g., "Check alerts and fix them").
-2. **Understand & Plan:** The LLM receives the prompt and the JSON schemas of available tools. It reasons about what to do first.
-3. **Execute:** The LLM returns a function call (e.g., `get_active_alerts`). `agent.py` intercepts this, calls the local Python tool in `tools.py`.
-4. **Observe & Adapt:** The output (JSON string) is fed back to the LLM. If an action fails (e.g., wrong service name), the error string is fed back, allowing the agent to adapt and retry.
+1. **Understand & Plan:** The LLM receives the prompt and the JSON schemas of available tools. It checks active alerts.
+2. **Context & Memory:** Before acting, the agent uses `search_company_runbooks` to read the company policy for the degraded service.
+3. **Execute & Human-in-the-Loop:** If the runbook requires human approval for a critical action (like a restart), the agent automatically halts and uses `request_human_approval` to ask the operator in the terminal.
+4. **Observe & Adapt:** The output is fed back to the LLM. If an action fails, the error string is fed back, allowing the agent to adapt and retry.
 5. **Verify & Complete:** The system prompt strictly requires the agent to verify its actions by checking service health *after* a restart, ensuring it actually accomplished the goal before generating a Jira ticket.
 
 ---
 
 ## 🛠️ Important Technical & Design Decisions
-* **Custom Orchestration Loop:** I intentionally avoided heavy frameworks like LangChain or AutoGen. Writing the `while` loop manually in `agent.py` provides complete control over execution flow, easier debugging, and demonstrates first-principles understanding of how an LLM interacts with tools.
-* **Mock System as a Class:** Rather than standing up a real FastAPI server on `localhost` (which can cause port binding issues and requires background processes), `mock_system.py` uses a standard Python class that mimics a REST API. This ensures the demo is 100% reliable out-of-the-box.
-* **Automatic Rate Limit Recovery:** Free-tier LLM APIs aggressively rate-limit to ~5 RPM. I engineered the `agent.py` loop to catch `429 Quota Exceeded` exceptions, gracefully sleep for 60 seconds, and seamlessly resume execution without crashing.
+* **Custom Orchestration Loop:** I intentionally avoided heavy frameworks like LangChain or AutoGen. Writing the `while` loop manually provides complete control over execution flow and demonstrates first-principles understanding of how an LLM interacts with tools.
+* **Human-in-the-Loop (HITL) Safety:** True enterprise autonomy requires safety rails. The agent comprehends English policies from the runbook and intelligently pauses execution to request Y/N approval from a human before executing critical infrastructure changes.
+* **Automatic Rate Limit Recovery:** Free-tier LLM APIs aggressively rate-limit. I engineered the agent to catch `429 Quota Exceeded` exceptions, gracefully sleep, and seamlessly resume execution without crashing.
+* **UX / Readability:** To make the terminal output readable for human operators, I used the `rich` Python library to clearly separate the AI's internal thoughts (blue panels) from actual system execution results (magenta JSON panels).
 
 ---
 

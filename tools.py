@@ -1,4 +1,7 @@
 from mock_system import system_mock
+from rich.console import Console
+
+console = Console()
 
 def get_active_alerts():
     """Returns a JSON string of all currently active system alerts."""
@@ -46,10 +49,11 @@ def request_human_approval(reason: str):
     You MUST use this if a runbook policy dictates that human approval is required for an action.
     The 'reason' string should explain to the user exactly what you want to do and why.
     """
-    print(f"\n✋ [HUMAN APPROVAL REQUIRED]: The agent is requesting permission to: {reason}")
-    response = input("Do you approve this action? (y/n): ")
+    console.print(f"\n[bold yellow]✋ HUMAN APPROVAL REQUIRED[/bold yellow]")
+    console.print(f"[yellow]The agent is requesting permission to:[/yellow] [white]{reason}[/white]")
+    response = console.input("\n[bold yellow]Do you approve this action? (y/n): [/bold yellow]")
+    
     if response.lower() == 'y':
         return '{"status": "approved", "message": "Human operator approved the action."}'
     else:
         return '{"status": "denied", "message": "Human operator denied the action. You must halt the remediation."}'
-
