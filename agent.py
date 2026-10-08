@@ -117,8 +117,19 @@ def run_agentic_loop(user_prompt: str):
         if tool_responses:
             print("🔄 [AGENT]: Analyzing observation and deciding next action...")
             import time
-            time.sleep(3) # Prevent free-tier rate limits
-            response = chat.send_message(tool_responses)
+            
+            # Retry loop for rate limits
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response = chat.send_message(tool_responses)
+                    break # Success, break out of retry loop
+                except Exception as e:
+                    if "429" in str(e) or "Quota exceeded" in str(e):
+                        print(f"⏳ [RATE LIMIT]: Free tier limit hit. Pausing for 60 seconds before resuming... (Attempt {attempt+1}/{max_retries})")
+                        time.sleep(60)
+                    else:
+                        raise e # If it's not a rate limit, crash normally
         else:
             break
 

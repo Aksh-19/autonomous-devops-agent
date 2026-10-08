@@ -1,18 +1,77 @@
-# Autonomous DevOps Agent 🤖
+# Autonomous DevOps Remediator Agent 🤖
 
-This repository contains the prototype for the "Autonomous AI Task Worker" (CentrAlign AI Engineering Intern Assignment). 
+This repository contains my submission for the **CentrAlign AI Engineering Intern Assignment**.
 
-## About The Project
-This project implements an **L1 DevOps Remediator Agent**. Instead of simply answering questions, this agent acts autonomously to investigate server alerts, diagnose issues by reading logs, remediate them (e.g., restarting services), verify the fix, and automatically file incident reports in a simulated company environment.
+I have built a prototype of an **Autonomous AI Task Worker** focused on a highly valuable enterprise use-case: **L1 DevOps Auto-Remediation**. 
 
-### Scope & Architecture
-As requested by the prompt, this is a **narrow prototype that genuinely works**. Rather than mocking a massive, unstructured web environment, the agent operates against a simulated local "Company API" (`mock_system.py`) that enforces strict constraints and requires the agent to reason through errors and verify its actions.
+Instead of building a broad, mocked-out browser system, I adhered to the scope guidelines (*"A narrow prototype that genuinely works is better than a broad system where most functionality is mocked"*) and built a system that autonomously interacts with simulated internal REST APIs to diagnose server issues, fix them, and log tickets.
 
-### Phases
-* ✅ **Phase 1**: Mock Environment Setup (`mock_system.py` - Simulates Alerts, Logs, Services, and Tickets).
-* ⏳ **Phase 2**: Tool Definitions.
-* ⏳ **Phase 3**: Core Agent Loop.
-* ⏳ **Phase 4**: Testing & Reliability Constraints.
-* ⏳ **Phase 5**: Final Polish & Documentation.
+## 🚀 How to Run (Setup Instructions)
 
-*(More setup instructions and architecture details will be added as phases are completed).*
+**Prerequisites:** Python 3.10+, and a free Google Gemini API Key.
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Aksh-19/autonomous-devops-agent.git
+   cd autonomous-devops-agent
+   ```
+2. Create and activate a virtual environment:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Export your LLM API Key:
+   ```bash
+   export GEMINI_API_KEY="your_api_key_here"
+   ```
+5. Run the Agent:
+   ```bash
+   python agent.py
+   ```
+
+---
+
+## 🧠 Architecture Explanation
+The system operates on a pure Python **ReAct (Reason + Act)** loop that interacts with `mock_system.py`, which acts as the stateful "Company Server".
+
+1. **Goal:** The user provides a natural language prompt (e.g., "Check alerts and fix them").
+2. **Understand & Plan:** The LLM receives the prompt and the JSON schemas of available tools. It reasons about what to do first.
+3. **Execute:** The LLM returns a function call (e.g., `get_active_alerts`). `agent.py` intercepts this, calls the local Python tool in `tools.py`.
+4. **Observe & Adapt:** The output (JSON string) is fed back to the LLM. If an action fails (e.g., wrong service name), the error string is fed back, allowing the agent to adapt and retry.
+5. **Verify & Complete:** The system prompt strictly requires the agent to verify its actions by checking service health *after* a restart, ensuring it actually accomplished the goal before generating a Jira ticket.
+
+---
+
+## 🛠️ Important Technical & Design Decisions
+* **Custom Orchestration Loop:** I intentionally avoided heavy frameworks like LangChain or AutoGen. Writing the `while` loop manually in `agent.py` provides complete control over execution flow, easier debugging, and demonstrates first-principles understanding of how an LLM interacts with tools.
+* **Mock System as a Class:** Rather than standing up a real FastAPI server on `localhost` (which can cause port binding issues and requires background processes), `mock_system.py` uses a standard Python class that mimics a REST API. This ensures the demo is 100% reliable out-of-the-box.
+* **Automatic Rate Limit Recovery:** Free-tier LLM APIs aggressively rate-limit to ~5 RPM. I engineered the `agent.py` loop to catch `429 Quota Exceeded` exceptions, gracefully sleep for 60 seconds, and seamlessly resume execution without crashing.
+
+---
+
+## ⚠️ Known Limitations
+1. **API Rate Limits:** Running on a free Gemini key means the agent is artificially slow. If multiple tools are needed rapidly, it will pause for 60 seconds.
+2. **Single-Threaded Execution:** The agent executes tools sequentially. In a production environment, we would want parallel tool execution (e.g., querying logs from 3 services at once).
+
+---
+
+## 🔮 What I Would Build Next (Given More Time)
+1. **Vector-Database Context Memory:** Before making decisions, I would have the agent query a local ChromaDB containing "Past Incident Reports". This would allow the agent to learn that "Alert XYZ usually means we should restart the cache, not the database."
+2. **Human-in-the-Loop (HITL) Approvals:** For highly sensitive actions (e.g., `drop_database` or `restart_production_cluster`), I would implement a tool that pauses the loop and sends a Slack/CLI prompt to a human manager for a simple "Y/N" approval before proceeding.
+
+---
+
+## 📋 Assumptions Made
+* I assumed the user wants the agent to handle the entire lifecycle (Investigate -> Remediate -> Verify -> Document) autonomously.
+* I assumed the mock environment accurately reflects standard JSON API responses in a typical enterprise.
+
+---
+
+## 🧩 Components Used
+* **Model:** Google `gemini-3.5-flash` (via `google-generativeai` SDK). Chosen because flash models are exceptionally fast and reliable at JSON-based tool calling.
+* **Framework:** Pure Python (No AI agent frameworks used to demonstrate raw engineering control).
+* **Mock Environment:** Hand-written Python state machine (`mock_system.py`).
