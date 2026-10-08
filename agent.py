@@ -39,9 +39,9 @@ def build_agent():
     6. Once the ticket is created, output a final summary for the user.
     """
 
-    # We use gemini-1.5-flash as it is exceptionally fast at tool calling
+    # We use gemini-3.5-flash as it is exceptionally fast at tool calling
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-3.5-flash",
         tools=list(tools_dict.values()),
         system_instruction=system_instruction
     )
@@ -91,20 +91,24 @@ def run_agentic_loop(user_prompt: str):
                         
                         # Pack the result back into a format the LLM understands
                         tool_responses.append(
-                            genai.types.Part.from_function_response(
-                                name=func_name,
-                                response={"result": result}
-                            )
+                            {
+                                "function_response": {
+                                    "name": func_name,
+                                    "response": {"result": result}
+                                }
+                            }
                         )
                     except Exception as e:
                         # Error handling (Reliability criteria)
                         error_msg = str(e)
                         print(f"⚠️  [EXECUTION ERROR]: {error_msg}\n")
                         tool_responses.append(
-                            genai.types.Part.from_function_response(
-                                name=func_name,
-                                response={"error": error_msg}
-                            )
+                            {
+                                "function_response": {
+                                    "name": func_name,
+                                    "response": {"error": error_msg}
+                                }
+                            }
                         )
                 else:
                     print(f"⚠️ [SYSTEM ERROR]: Tool '{func_name}' not found.\n")
@@ -112,6 +116,8 @@ def run_agentic_loop(user_prompt: str):
         # 3. Adapt/Verify: Send the observations back to the LLM so it can decide the next step
         if tool_responses:
             print("🔄 [AGENT]: Analyzing observation and deciding next action...")
+            import time
+            time.sleep(3) # Prevent free-tier rate limits
             response = chat.send_message(tool_responses)
         else:
             break
