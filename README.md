@@ -55,24 +55,24 @@ The system operates on a pure Python **ReAct (Reason + Act)** loop that interact
 ---
 
 ## ⚠️ Known Limitations
-1. **API Rate Limits:** Running on a free Gemini key means the agent is artificially slow. If multiple tools are needed rapidly, it will pause for 60 seconds.
-2. **Single-Threaded Execution:** The agent executes tools sequentially. In a production environment, we would want parallel tool execution (e.g., querying logs from 3 services at once).
+1. **API Rate Limits:** Running on a free Gemini key introduces strict Requests-Per-Minute (RPM) limits. To mitigate this, the agent's prompt was engineered to batch non-dependent tool calls concurrently, and the Python loop contains a 60-second automatic retry handler.
+2. **Synchronous Execution:** While the LLM is prompted to output multiple tool calls concurrently, the local Python loop currently executes them sequentially. In a production system, this would be upgraded to `asyncio` for true parallel execution to reduce Time-To-Resolution (TTR).
 
 ---
 
 ## 🔮 What I Would Build Next (Given More Time)
-1. **Vector-Database Context Memory:** Before making decisions, I would have the agent query a local ChromaDB containing "Past Incident Reports". This would allow the agent to learn that "Alert XYZ usually means we should restart the cache, not the database."
-2. **Human-in-the-Loop (HITL) Approvals:** For highly sensitive actions (e.g., `drop_database` or `restart_production_cluster`), I would implement a tool that pauses the loop and sends a Slack/CLI prompt to a human manager for a simple "Y/N" approval before proceeding.
+1. **RAG Context Engine:** I would replace the hardcoded runbook dictionary with a Vector Database (like ChromaDB) containing historical incident reports. This would allow the agent to perform RAG (Retrieval-Augmented Generation) to dynamically learn how past engineers solved similar obscure alerts.
+2. **Live Integrations & Observability:** I would transition from the mock environment to live enterprise integrations—connecting actual APIs like Datadog for alerts and Jira for ticketing. Additionally, I would build a streamlined web dashboard (e.g., Streamlit/React) to provide stakeholders with real-time observability outside the terminal.
 
 ---
 
 ## 📋 Assumptions Made
-* I assumed the user wants the agent to handle the entire lifecycle (Investigate -> Remediate -> Verify -> Document) autonomously.
+* I assumed the user wants the agent to handle the entire lifecycle (Investigate -> Context -> Remediate -> Verify -> Document) autonomously.
 * I assumed the mock environment accurately reflects standard JSON API responses in a typical enterprise.
 
 ---
 
 ## 🧩 Components Used
-* **Model:** Google `gemini-3.5-flash` (via `google-generativeai` SDK). Chosen because flash models are exceptionally fast and reliable at JSON-based tool calling.
+* **Model:** Google Gemini Flash Lite (`gemini-flash-lite-latest` via `google-generativeai` SDK). I specifically architected the agent using the Lite model because its higher rate-limit threshold was necessary to support the agent's rapid, concurrent tool-calling loop without hitting quotas during testing.
 * **Framework:** Pure Python (No AI agent frameworks used to demonstrate raw engineering control).
 * **Mock Environment:** Hand-written Python state machine (`mock_system.py`).
