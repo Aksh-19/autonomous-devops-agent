@@ -51,7 +51,7 @@ def build_agent():
     """
 
     model = genai.GenerativeModel(
-        model_name="gemini-3.8-flash",
+        model_name="gemini-flash-lite-latest",
         tools=list(tools_dict.values()),
         system_instruction=system_instruction
     )
@@ -64,8 +64,19 @@ def run_agentic_loop(user_prompt: str):
     model, tools_dict = build_agent()
     chat = model.start_chat()
     
-    with console.status("[bold cyan]🤖 Agent is reading request...[/bold cyan]", spinner="dots"):
-        response = chat.send_message(user_prompt)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            with console.status("[bold cyan]🤖 Agent is reading request...[/bold cyan]", spinner="dots"):
+                response = chat.send_message(user_prompt)
+            break
+        except Exception as e:
+            if "429" in str(e) or "Quota exceeded" in str(e):
+                console.print(f"[bold red]⏳ RATE LIMIT:[/bold red] [yellow]Free tier limit hit on initial request. Pausing for 60 seconds... (Attempt {attempt+1}/{max_retries})[/yellow]")
+                with console.status("[bold yellow]Sleeping to reset quota...[/bold yellow]", spinner="clock"):
+                    time.sleep(60)
+            else:
+                raise e
     
     while True:
         if not response.parts or not hasattr(response.parts[0], 'function_call') or not response.parts[0].function_call:
@@ -83,6 +94,7 @@ def run_agentic_loop(user_prompt: str):
                 formatted_args = json.dumps(args, indent=2) if args else "{}"
                 thought_text = f"[bold cyan]Tool:[/bold cyan] {func_name}\n[bold cyan]Args:[/bold cyan]\n{formatted_args}"
                 console.print(Panel(thought_text, title="🧠 [bold blue]Agent Thought & Plan[/bold blue]", border_style="blue"))
+                time.sleep(1.75) # Added artificial delay to improve UI readability for human operators monitoring the terminal
                 
                 func = tools_dict.get(func_name)
                 if func:
@@ -98,6 +110,8 @@ def run_agentic_loop(user_prompt: str):
                             console.print(Panel(syntax, title="👁️ [bold magenta]System Observation[/bold magenta]", border_style="magenta"))
                         except:
                             console.print(Panel(str(result), title="👁️ [bold magenta]System Observation[/bold magenta]", border_style="magenta"))
+                        
+                        time.sleep(1.75) # Added artificial delay to improve UI readability for human operators monitoring the terminal
                         
                         tool_responses.append(
                             {
